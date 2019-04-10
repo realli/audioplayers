@@ -74,6 +74,29 @@ FlutterMethodChannel *_channel_audioplayer;
                     NSLog(@"position: %f %@", milliseconds, call.arguments[@"positions"] );
                     [self play:playerId url:url isLocal:isLocal volume:volume time:time isNotification:respectSilence];
                   },
+                @"preLoad":
+                  ^{
+                    NSLog(@"PreLoad!");
+                    NSString *url = call.arguments[@"url"];
+                    if (url == nil)
+                        result(0);
+                    if (call.arguments[@"isLocal"] == nil)
+                        result(0);
+                    
+                    if (call.arguments[@"respectSilence"] == nil)
+                        result(0);
+                    int isLocal = [call.arguments[@"isLocal"]intValue] ;
+                    float volume = 1.0;
+                    int milliseconds = 0.0 ;
+                    bool respectSilence = [call.arguments[@"respectSilence"]boolValue] ;
+                    CMTime time = CMTimeMakeWithSeconds(milliseconds / 1000,NSEC_PER_SEC);
+                    NSLog(@"isLocal: %d %@", isLocal, call.arguments[@"isLocal"] );
+                    NSLog(@"volume: %f %@", volume, call.arguments[@"volume"] );
+                    NSLog(@"position: %f %@", milliseconds, call.arguments[@"positions"] );
+                    [self preLoad:playerId url:url isLocal:isLocal volume:volume time:time isNotification:respectSilence onReady:^(NSString * playerId) {
+                            result(@(1));
+                          }];
+                  },
                 @"pause":
                   ^{
                     NSLog(@"pause");
@@ -139,7 +162,7 @@ FlutterMethodChannel *_channel_audioplayer;
     NSLog(@"not implemented");
     result(FlutterMethodNotImplemented);
   }
-  if(![call.method isEqualToString:@"setUrl"]) {
+  if(!([call.method isEqualToString:@"setUrl"] || call.method isEqualToString:@"preLoad"])) {
     result(@(1));
   }
 }
@@ -219,6 +242,44 @@ FlutterMethodChannel *_channel_audioplayer;
       onReady(playerId);
     }
   }
+}
+
+-(void) preLoad: (NSString*) playerId
+         url: (NSString*) url
+     isLocal: (int) isLocal
+      volume: (float) volume
+        time: (CMTime) time
+      isNotification: (bool) respectSilence
+       onReady:(VoidCallback)onReady
+{
+    NSError *error = nil;
+    AVAudioSessionCategory category;
+    if (respectSilence) {
+        category = AVAudioSessionCategoryAmbient;
+    } else {
+        category = AVAudioSessionCategoryPlayback;
+    }
+    BOOL success = [[AVAudioSession sharedInstance]
+                    setCategory: category
+                    error:&error];
+  if (!success) {
+    NSLog(@"Error setting speaker: %@", error);
+  }
+  [[AVAudioSession sharedInstance] setActive:YES error:&error];
+
+  [ self setUrl:url 
+         isLocal:isLocal 
+         playerId:playerId 
+         onReady:^(NSString * playerId) {
+           NSMutableDictionary * playerInfo = players[playerId];
+           AVPlayer *player = playerInfo[@"player"];
+           [ player setVolume:volume ];
+           [ player seekToTime:time ];
+
+           [ playerInfo setObject:@true forKey:@"isPlaying" ];
+           onReady(playerId);
+         }    
+  ];
 }
 
 -(void) play: (NSString*) playerId

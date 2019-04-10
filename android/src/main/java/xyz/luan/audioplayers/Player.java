@@ -1,4 +1,5 @@
 package xyz.luan.audioplayers;
+import io.flutter.plugin.common.MethodChannel;
 
 abstract class Player {
 
@@ -9,6 +10,8 @@ abstract class Player {
     abstract String getPlayerId();
 
     abstract void play();
+
+    abstract void preLoad(String url, boolean isLocal, MethodChannel.Result response);
 
     abstract void stop();
 

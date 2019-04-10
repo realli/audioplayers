@@ -62,6 +62,16 @@ public class AudioplayersPlugin implements MethodCallHandler {
                 player.play();
                 break;
             }
+            case "preLoad": {
+                final String url = call.argument("url");
+                final double volume = 0.0;
+                final boolean respectSilence = call.argument("respectSilence");
+                final boolean isLocal = call.argument("isLocal");
+                player.configAttributes(respectSilence);
+                player.preLoad(url, isLocal, response);
+
+                break;
+            }
             case "resume": {
                 player.play();
                 break;
@@ -105,7 +115,9 @@ public class AudioplayersPlugin implements MethodCallHandler {
                 return;
             }
         }
-        response.success(1);
+        if(!call.method.equals("preLoad")) {
+            response.success(1);
+        }
     }
 
     private Player getPlayer(String playerId, String mode) {

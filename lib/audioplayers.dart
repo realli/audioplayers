@@ -150,6 +150,17 @@ class AudioPlayer {
         .then((result) => (result as int));
   }
 
+  Future<int> preLoad(String url,
+      {bool isLocal: false, bool respectSilence: false}) async {
+    int result = await _invokeMethod('preLoad', {
+      'url': url,
+      'isLocal': isLocal,
+      'position': null,
+      'respectSilence': respectSilence,
+    });
+    return result;
+  }
+
   /// Plays audio. Url can be a remote url (isLocal = false) or a local file system path (isLocal = true).
   Future<int> play(
     String url, {

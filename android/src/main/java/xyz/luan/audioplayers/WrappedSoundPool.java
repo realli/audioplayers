@@ -15,6 +15,8 @@ import java.net.URL;
 
 import static java.io.File.createTempFile;
 
+import io.flutter.plugin.common.MethodChannel;
+
 public class WrappedSoundPool extends Player implements SoundPool.OnLoadCompleteListener {
 
     private static SoundPool soundPool = createSoundPool();
@@ -38,6 +40,8 @@ public class WrappedSoundPool extends Player implements SoundPool.OnLoadComplete
     private boolean looping = false;
 
     private boolean loading = false;
+
+    private MethodChannel.Result response = null;
 
     WrappedSoundPool(AudioplayersPlugin ref, String playerId) {
         this.ref = ref;
@@ -93,6 +97,30 @@ public class WrappedSoundPool extends Player implements SoundPool.OnLoadComplete
         }
         this.url = url;
         this.loading = true;
+
+        final WrappedSoundPool self = this;
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                self.soundId = soundPool.load(getAudioPath(url, isLocal), 1);
+            }
+        }).start();
+    }
+
+    @Override
+    void preLoad(final String url, final boolean isLocal, MethodChannel.Result response) {
+        if (this.url != null && this.url.equals(url)) {
+            return;
+        }
+        if (this.soundId != null) {
+            soundPool.unload(this.soundId);
+        } else {
+            soundPool.setOnLoadCompleteListener(this);
+        }
+        this.url = url;
+        this.loading = true;
+        this.response = response;
 
         final WrappedSoundPool self = this;
 
@@ -181,6 +209,12 @@ public class WrappedSoundPool extends Player implements SoundPool.OnLoadComplete
     public void onLoadComplete(SoundPool soundPool, int sampleId, int status) {
         if (soundId == sampleId) {
             this.loading = false;
+
+            if(this.response != null) {
+                this.response.success(1);
+                this.response = null;
+            }
+
             if (this.playing) {
                 start();
             }

@@ -7,6 +7,8 @@ import android.os.Build;
 
 import java.io.IOException;
 
+import io.flutter.plugin.common.MethodChannel;
+
 public class WrappedMediaPlayer extends Player implements MediaPlayer.OnPreparedListener, MediaPlayer.OnCompletionListener {
 
     private String playerId;
@@ -25,9 +27,12 @@ public class WrappedMediaPlayer extends Player implements MediaPlayer.OnPrepared
     private MediaPlayer player;
     private AudioplayersPlugin ref;
 
+    private MethodChannel.Result response;
+
     WrappedMediaPlayer(AudioplayersPlugin ref, String playerId) {
         this.ref = ref;
         this.playerId = playerId;
+        this.response = null;
     }
 
     /**
@@ -128,6 +133,26 @@ public class WrappedMediaPlayer extends Player implements MediaPlayer.OnPrepared
     }
 
     @Override
+    void preLoad(String url, boolean isLocal, MethodChannel.Result response) {
+        if (!objectEquals(this.url, url)) {
+            this.url = url;
+            if (this.released) {
+                this.player = createPlayer();
+                this.released = false;
+            } else if (this.prepared) {
+                this.player.reset();
+                this.prepared = false;
+            }
+
+            this.setSource(url);
+            this.player.setVolume((float) volume, (float) volume);
+            this.player.setLooping(this.releaseMode == ReleaseMode.LOOP);
+            this.player.prepareAsync();
+            this.response = response;
+        }
+    }
+
+    @Override
     void stop() {
         if (this.released) {
             return;
@@ -194,6 +219,11 @@ public class WrappedMediaPlayer extends Player implements MediaPlayer.OnPrepared
         if (this.shouldSeekTo >= 0) {
             this.player.seekTo(this.shouldSeekTo);
             this.shouldSeekTo = -1;
+        }
+
+        if(this.response != null) {
+            this.response.success(1);
+            this.response = null;
         }
     }
 
